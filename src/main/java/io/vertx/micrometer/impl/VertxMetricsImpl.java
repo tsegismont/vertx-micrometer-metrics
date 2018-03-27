@@ -106,14 +106,6 @@ public class VertxMetricsImpl extends AbstractMetrics implements VertxMetrics {
   }
 
   @Override
-  public void timerCreated(long l) {
-  }
-
-  @Override
-  public void timerEnded(long l, boolean b) {
-  }
-
-  @Override
   public EventBusMetrics createMetrics(EventBus eventBus) {
     if (eventBusMetrics != null) {
       return eventBusMetrics;

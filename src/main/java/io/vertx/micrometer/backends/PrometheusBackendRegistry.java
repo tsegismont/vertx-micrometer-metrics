@@ -24,11 +24,16 @@ import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.impl.VertxBuilder;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
+import io.vertx.core.metrics.impl.DummyVertxMetrics;
+import io.vertx.core.spi.VertxMetricsFactory;
+import io.vertx.core.spi.metrics.VertxMetrics;
 import io.vertx.micrometer.VertxPrometheusOptions;
 
 /**
@@ -70,7 +75,19 @@ public final class PrometheusBackendRegistry implements BackendRegistry {
   @Override
   public void init() {
     if (options.isStartEmbeddedServer()) {
-      this.vertx = Vertx.vertx();
+      this.vertx = Vertx.builder()
+        .withMetrics(new VertxMetricsFactory() {
+          @Override
+          public void init(VertxBuilder builder) {
+            builder.metrics(metrics(null));
+          }
+
+          @Override
+          public VertxMetrics metrics(VertxOptions options) {
+            return DummyVertxMetrics.INSTANCE;
+          }
+        })
+        .build();
       // Start dedicated server
       HttpServerOptions serverOptions = options.getEmbeddedServerOptions();
       if (serverOptions == null) {

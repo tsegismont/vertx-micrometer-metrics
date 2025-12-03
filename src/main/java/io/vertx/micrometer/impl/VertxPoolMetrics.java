@@ -17,6 +17,7 @@
 package io.vertx.micrometer.impl;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.LongTaskTimer;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.Timer.Sample;
@@ -31,10 +32,10 @@ import static io.vertx.micrometer.MetricsDomain.NAMED_POOLS;
 /**
  * @author Joel Takvorian
  */
-class VertxPoolMetrics extends AbstractMetrics implements PoolMetrics<Sample, Sample> {
+class VertxPoolMetrics extends AbstractMetrics implements PoolMetrics<VertxPoolMetrics.QueueMetric, Sample> {
 
   final Timer queueDelay;
-  final LongAdder queueSize;
+  final LongTaskTimer queueSize;
   final Timer usage;
   final LongAdder inUse;
   final LongAdder usageRatio;
@@ -53,7 +54,7 @@ class VertxPoolMetrics extends AbstractMetrics implements PoolMetrics<Sample, Sa
       .description("Time spent in queue before being processed")
       .tags(tags)
       .register(registry);
-    queueSize = longGaugeBuilder(names.getPoolQueuePending(), LongAdder::doubleValue)
+    queueSize = LongTaskTimer.builder(names.getPoolQueuePending())
       .description("Number of pending elements in queue")
       .tags(tags)
       .register(registry);
@@ -76,15 +77,13 @@ class VertxPoolMetrics extends AbstractMetrics implements PoolMetrics<Sample, Sa
   }
 
   @Override
-  public Sample enqueue() {
-    queueSize.increment();
-    return Timer.start();
+  public QueueMetric enqueue() {
+    return new QueueMetric(queueSize.start(), Timer.start());
   }
 
   @Override
-  public void dequeue(Sample submitted) {
-    queueSize.decrement();
-    submitted.stop(queueDelay);
+  public void dequeue(QueueMetric queueMetric) {
+    queueMetric.dequeue();
   }
 
   @Override
@@ -100,5 +99,20 @@ class VertxPoolMetrics extends AbstractMetrics implements PoolMetrics<Sample, Sa
     usageRatio.decrement();
     timer.stop(usage);
     completed.increment();
+  }
+
+  final class QueueMetric {
+    private final LongTaskTimer.Sample queueSize;
+    private final Sample submitted;
+
+    private QueueMetric(LongTaskTimer.Sample queueSize, Sample submitted) {
+      this.queueSize = queueSize;
+      this.submitted = submitted;
+    }
+
+    void dequeue() {
+      queueSize.stop();
+      submitted.stop(queueDelay);
+    }
   }
 }

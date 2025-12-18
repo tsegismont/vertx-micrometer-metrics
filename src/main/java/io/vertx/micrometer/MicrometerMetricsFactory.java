@@ -15,7 +15,6 @@
  */
 package io.vertx.micrometer;
 
-import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.json.JsonObject;
@@ -25,13 +24,6 @@ import io.vertx.core.spi.metrics.VertxMetrics;
 import io.vertx.micrometer.backends.BackendRegistries;
 import io.vertx.micrometer.backends.BackendRegistry;
 import io.vertx.micrometer.impl.VertxMetricsImpl;
-import io.vertx.micrometer.impl.meters.LongGauges;
-
-import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.LongAdder;
 
 /**
  * The micrometer metrics registry.
@@ -39,8 +31,6 @@ import java.util.concurrent.atomic.LongAdder;
  * @author Joel Takvorian
  */
 public class MicrometerMetricsFactory implements VertxMetricsFactory {
-
-  private static final Map<MeterRegistry, ConcurrentMap<Meter.Id, LongAdder>> longGaugesByRegistry = new WeakHashMap<>(1);
 
   private final MeterRegistry micrometerRegistry;
 
@@ -79,11 +69,7 @@ public class MicrometerMetricsFactory implements VertxMetricsFactory {
       options = new MicrometerMetricsOptions(metricsOptions.toJson());
     }
     BackendRegistry backendRegistry = BackendRegistries.setupBackend(options, micrometerRegistry);
-    ConcurrentMap<Meter.Id, LongAdder> longGauges;
-    synchronized (longGaugesByRegistry) {
-      longGauges = longGaugesByRegistry.computeIfAbsent(backendRegistry.getMeterRegistry(), meterRegistry -> new ConcurrentHashMap<>());
-    }
-    VertxMetricsImpl metrics = new VertxMetricsImpl(options, backendRegistry, new LongGauges(longGauges));
+    VertxMetricsImpl metrics = new VertxMetricsImpl(options, backendRegistry);
     metrics.init();
 
     return metrics;

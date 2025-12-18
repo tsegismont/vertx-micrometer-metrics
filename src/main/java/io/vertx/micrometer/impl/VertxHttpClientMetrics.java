@@ -27,6 +27,8 @@ import io.vertx.core.spi.observability.HttpRequest;
 import io.vertx.core.spi.observability.HttpResponse;
 import io.vertx.micrometer.impl.VertxHttpClientMetrics.RequestMetric;
 import io.vertx.micrometer.impl.VertxNetClientMetrics.NetClientSocketMetric;
+import io.vertx.micrometer.impl.meters.CustomGauge;
+import io.vertx.micrometer.impl.meters.CustomGaugeBuilder;
 import io.vertx.micrometer.impl.tags.Labels;
 
 import java.util.concurrent.atomic.LongAdder;
@@ -38,7 +40,7 @@ import static io.vertx.micrometer.MetricsDomain.HTTP_CLIENT;
 /**
  * @author Joel Takvorian
  */
-class VertxHttpClientMetrics extends VertxNetClientMetrics implements HttpClientMetrics<RequestMetric, LongAdder, NetClientSocketMetric> {
+class VertxHttpClientMetrics extends VertxNetClientMetrics implements HttpClientMetrics<RequestMetric, CustomGauge, NetClientSocketMetric> {
 
   private final Function<HttpRequest, Iterable<Tag>> customTagsProvider;
   private final MeterProvider<Counter> requestCount;
@@ -77,12 +79,13 @@ class VertxHttpClientMetrics extends VertxNetClientMetrics implements HttpClient
   }
 
   @Override
-  public LongAdder connected(WebSocket webSocket) {
+  public CustomGauge connected(WebSocket webSocket) {
     Tags tags = local;
     if (enabledLabels.contains(REMOTE)) {
       tags = tags.and(REMOTE.toString(), Labels.address(webSocket.remoteAddress()));
     }
-    LongAdder wsConnections = longGaugeBuilder(names.getHttpActiveWsConnections(), LongAdder::doubleValue)
+    String name = names.getHttpActiveWsConnections();
+    CustomGauge wsConnections = new CustomGaugeBuilder(name, LongAdder::doubleValue)
       .description("Number of websockets currently opened")
       .tags(tags)
       .register(registry);
@@ -91,7 +94,7 @@ class VertxHttpClientMetrics extends VertxNetClientMetrics implements HttpClient
   }
 
   @Override
-  public void disconnected(LongAdder wsConnections) {
+  public void disconnected(CustomGauge wsConnections) {
     wsConnections.decrement();
   }
 
@@ -156,7 +159,7 @@ class VertxHttpClientMetrics extends VertxNetClientMetrics implements HttpClient
 
     final Tags tags;
 
-    final LongAdder requests;
+    final CustomGauge requests;
     final Sample sample;
 
     Tags responseTags;
@@ -167,7 +170,8 @@ class VertxHttpClientMetrics extends VertxNetClientMetrics implements HttpClient
     RequestMetric(Tags tags) {
       this.tags = tags;
       responseTags = tags;
-      requests = longGaugeBuilder(names.getHttpActiveRequests(), LongAdder::doubleValue)
+      String name = names.getHttpActiveRequests();
+      requests = new CustomGaugeBuilder(name, LongAdder::doubleValue)
         .description("Number of requests waiting for a response")
         .tags(tags)
         .register(registry);

@@ -17,41 +17,38 @@
 
 package io.vertx.micrometer.impl.meters;
 
-import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.Measurement;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Supplier;
 import java.util.function.ToDoubleFunction;
 
-public class LongGaugeBuilder {
+public class CustomGaugeBuilder {
 
-  private final LongAdderSupplier supplier;
-  private final Gauge.Builder<Supplier<Number>> builder;
-  private final ConcurrentMap<Meter.Id, LongAdder> longGauges;
+  private final Meter.Builder builder;
 
-  LongGaugeBuilder(String name, ConcurrentMap<Meter.Id, LongAdder> longGauges, ToDoubleFunction<LongAdder> func) {
-    this.supplier = new LongAdderSupplier(longGauges, func);
-    this.builder = Gauge.builder(name, supplier);
-    this.longGauges = longGauges;
+  public CustomGaugeBuilder(String name, ToDoubleFunction<LongAdder> func) {
+    this.builder = Meter.builder(name, Meter.Type.GAUGE, new LongAdderMeasurements(func));
   }
 
-  public LongGaugeBuilder description(String description) {
+  public CustomGaugeBuilder description(String description) {
     builder.description(description);
     return this;
   }
 
-  public LongGaugeBuilder tags(Iterable<Tag> tags) {
+  public CustomGaugeBuilder tags(Iterable<Tag> tags) {
     builder.tags(tags);
     return this;
   }
 
-  public LongAdder register(MeterRegistry registry) {
-    Meter.Id meterId = builder.register(registry).getId();
-    supplier.setId(meterId);
-    return longGauges.computeIfAbsent(meterId, id -> new LongAdder());
+  public CustomGauge register(MeterRegistry registry) {
+    Iterable<Measurement> measurements = builder.register(registry).measure();
+    if (measurements instanceof LongAdderMeasurements) {
+      LongAdderMeasurements longAdderMeasurements = (LongAdderMeasurements) measurements;
+      return new DefaultCustomGauge(longAdderMeasurements.longAdder());
+    }
+    return NoopCustomGauge.INSTANCE;
   }
 }

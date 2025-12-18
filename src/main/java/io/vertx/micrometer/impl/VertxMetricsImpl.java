@@ -40,7 +40,6 @@ import io.vertx.core.spi.observability.HttpRequest;
 import io.vertx.micrometer.MicrometerMetricsOptions;
 import io.vertx.micrometer.backends.BackendRegistries;
 import io.vertx.micrometer.backends.BackendRegistry;
-import io.vertx.micrometer.impl.meters.LongGauges;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -63,8 +62,8 @@ public class VertxMetricsImpl extends AbstractMetrics implements VertxMetrics {
   private final Function<HttpRequest, Iterable<Tag>> serverRequestTagsProvider;
   private final Function<HttpRequest, Iterable<Tag>> clientRequestTagsProvider;
 
-  public VertxMetricsImpl(MicrometerMetricsOptions options, BackendRegistry backendRegistry, LongGauges longGauges) {
-    super(backendRegistry.getMeterRegistry(), options.getMetricsNaming(), longGauges, EnumSet.copyOf(options.getLabels()));
+  public VertxMetricsImpl(MicrometerMetricsOptions options, BackendRegistry backendRegistry) {
+    super(backendRegistry.getMeterRegistry(), options.getMetricsNaming(), EnumSet.copyOf(options.getLabels()));
     this.backendRegistry = backendRegistry;
     registryName = options.getRegistryName();
     if (options.getDisabledMetricsCategories() != null) {

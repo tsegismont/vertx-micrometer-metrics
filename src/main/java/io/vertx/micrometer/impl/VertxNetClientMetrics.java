@@ -23,6 +23,8 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.core.spi.metrics.TransportMetrics;
 import io.vertx.micrometer.MetricsDomain;
 import io.vertx.micrometer.impl.VertxNetClientMetrics.NetClientSocketMetric;
+import io.vertx.micrometer.impl.meters.CustomGauge;
+import io.vertx.micrometer.impl.meters.CustomGaugeBuilder;
 import io.vertx.micrometer.impl.tags.Labels;
 
 import java.util.concurrent.atomic.LongAdder;
@@ -104,13 +106,14 @@ class VertxNetClientMetrics extends AbstractMetrics implements TransportMetrics<
 
     final Tags tags;
 
-    final LongAdder connections;
+    final CustomGauge connections;
     final Counter bytesReceived;
     final Counter bytesSent;
 
     NetClientSocketMetric(Tags tags) {
       this.tags = tags;
-      connections = longGaugeBuilder(names.getNetActiveConnections(), LongAdder::doubleValue)
+      String name = names.getNetActiveConnections();
+      connections = new CustomGaugeBuilder(name, LongAdder::doubleValue)
         .description("Number of connections to the remote host currently opened")
         .tags(tags)
         .register(registry);

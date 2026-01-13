@@ -24,6 +24,8 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.core.spi.metrics.HttpServerMetrics;
 import io.vertx.core.spi.observability.HttpRequest;
 import io.vertx.core.spi.observability.HttpResponse;
+import io.vertx.micrometer.impl.meters.CustomGauge;
+import io.vertx.micrometer.impl.meters.CustomGaugeBuilder;
 
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -37,7 +39,7 @@ import static io.vertx.micrometer.MetricsDomain.HTTP_SERVER;
 /**
  * @author Joel Takvorian
  */
-class VertxHttpServerMetrics extends VertxNetServerMetrics implements HttpServerMetrics<VertxHttpServerMetrics.RequestMetric, LongAdder, VertxNetServerMetrics.NetServerSocketMetric> {
+class VertxHttpServerMetrics extends VertxNetServerMetrics implements HttpServerMetrics<VertxHttpServerMetrics.RequestMetric, CustomGauge, VertxNetServerMetrics.NetServerSocketMetric> {
 
   private final Function<HttpRequest, Iterable<Tag>> customTagsProvider;
   private final MeterProvider<Counter> requestResetCount;
@@ -131,8 +133,9 @@ class VertxHttpServerMetrics extends VertxNetServerMetrics implements HttpServer
   }
 
   @Override
-  public LongAdder connected(NetServerSocketMetric socketMetric, RequestMetric requestMetric, ServerWebSocket serverWebSocket) {
-    LongAdder wsConnections = longGaugeBuilder(names.getHttpActiveWsConnections(), LongAdder::doubleValue)
+  public CustomGauge connected(NetServerSocketMetric socketMetric, RequestMetric requestMetric, ServerWebSocket serverWebSocket) {
+    String name = names.getHttpActiveWsConnections();
+    CustomGauge wsConnections = new CustomGaugeBuilder(name, LongAdder::doubleValue)
       .description("Number of websockets currently opened")
       .tags(socketMetric.tags)
       .register(registry);
@@ -141,7 +144,7 @@ class VertxHttpServerMetrics extends VertxNetServerMetrics implements HttpServer
   }
 
   @Override
-  public void disconnected(LongAdder wsConnections) {
+  public void disconnected(CustomGauge wsConnections) {
     wsConnections.decrement();
   }
 
@@ -154,7 +157,7 @@ class VertxHttpServerMetrics extends VertxNetServerMetrics implements HttpServer
 
     final Tags tags;
 
-    final LongAdder requests;
+    final CustomGauge requests;
     final Sample sample;
 
     // a string for a single route, a list of string for multiple
@@ -167,7 +170,8 @@ class VertxHttpServerMetrics extends VertxNetServerMetrics implements HttpServer
 
     RequestMetric(Tags tags) {
       this.tags = tags;
-      requests = longGaugeBuilder(names.getHttpActiveRequests(), LongAdder::doubleValue)
+      String name = names.getHttpActiveRequests();
+      requests = new CustomGaugeBuilder(name, LongAdder::doubleValue)
         .description("Number of requests being processed")
         .tags(tags)
         .register(registry);

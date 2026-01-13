@@ -17,19 +17,18 @@
 
 package io.vertx.micrometer.tests.impl.meters;
 
-import io.micrometer.core.instrument.Gauge;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.*;
+import io.micrometer.core.instrument.Meter.Type;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.micrometer.Match;
 import io.vertx.micrometer.MatchType;
 import io.vertx.micrometer.backends.BackendRegistries;
-import io.vertx.micrometer.impl.meters.LongGauges;
+import io.vertx.micrometer.impl.meters.CustomGauge;
+import io.vertx.micrometer.impl.meters.CustomGaugeBuilder;
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
 import static io.vertx.micrometer.Label.EB_ADDRESS;
@@ -40,8 +39,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class GaugesTest {
 
-  private LongGauges longGauges = new LongGauges(new ConcurrentHashMap<>());
-
   @Test
   public void shouldAliasGaugeLabel() {
     MeterRegistry registry = new SimpleMeterRegistry();
@@ -50,18 +47,28 @@ public class GaugesTest {
       .setType(MatchType.REGEX)
       .setValue("addr1")
       .setAlias("1")));
-    LongAdder g1 = longGauges.builder("my_gauge", LongAdder::doubleValue).tags(Tags.of(EB_ADDRESS.toString(), "addr1")).register(registry);
+    CustomGauge g1 = new CustomGaugeBuilder("my_gauge", LongAdder::doubleValue).tags(Tags.of(EB_ADDRESS.toString(), "addr1")).register(registry);
     g1.increment();
     g1.increment();
-    LongAdder g2 = longGauges.builder("my_gauge", LongAdder::doubleValue).tags(Tags.of(EB_ADDRESS.toString(), "addr2")).register(registry);
+    CustomGauge g2 = new CustomGaugeBuilder("my_gauge", LongAdder::doubleValue).tags(Tags.of(EB_ADDRESS.toString(), "addr2")).register(registry);
     g2.increment();
 
-    Gauge g = registry.get("my_gauge").tags("address", "1").gauge();
-    assertThat(g.value()).isEqualTo(2d);
-    g = registry.find("my_gauge").tags("address", "addr1").gauge();
-    assertThat(g).isNull();
-    g = registry.get("my_gauge").tags("address", "addr2").gauge();
-    assertThat(g.value()).isEqualTo(1d);
+    Meter meter = registry.get("my_gauge").tags("address", "1").meter();
+    assertThat(meter.getId().getType()).isEqualTo(Type.GAUGE);
+    Iterable<Measurement> measurements = meter.measure();
+    assertThat(measurements).hasSize(1).first().satisfies(measurement -> {
+      assertThat(measurement.getStatistic()).isEqualTo(Statistic.VALUE);
+      assertThat(measurement.getValue()).isEqualTo(2d);
+    });
+    meter = registry.find("my_gauge").tags("address", "addr1").meter();
+    assertThat(meter).isNull();
+    meter = registry.get("my_gauge").tags("address", "addr2").meter();
+    assertThat(meter.getId().getType()).isEqualTo(Type.GAUGE);
+    measurements = meter.measure();
+    assertThat(measurements).hasSize(1).first().satisfies(measurement -> {
+      assertThat(measurement.getStatistic()).isEqualTo(Statistic.VALUE);
+      assertThat(measurement.getValue()).isEqualTo(1d);
+    });
   }
 
   @Test
@@ -72,27 +79,32 @@ public class GaugesTest {
       .setType(MatchType.REGEX)
       .setValue(".*")
       .setAlias("_")));
-    LongAdder g1 = longGauges.builder("my_gauge", LongAdder::doubleValue).tags(Tags.of(EB_ADDRESS.toString(), "addr1")).register(registry);
+    CustomGauge g1 = new CustomGaugeBuilder("my_gauge", LongAdder::doubleValue).tags(Tags.of(EB_ADDRESS.toString(), "addr1")).register(registry);
     g1.increment();
     g1.increment();
-    LongAdder g2 = longGauges.builder("my_gauge", LongAdder::doubleValue).tags(Tags.of(EB_ADDRESS.toString(), "addr2")).register(registry);
+    CustomGauge g2 = new CustomGaugeBuilder("my_gauge", LongAdder::doubleValue).tags(Tags.of(EB_ADDRESS.toString(), "addr2")).register(registry);
     g2.increment();
 
-    Gauge g = registry.get("my_gauge").tags("address", "_").gauge();
-    assertThat(g.value()).isEqualTo(3d);
-    g = registry.find("my_gauge").tags("address", "addr1").gauge();
-    assertThat(g).isNull();
-    g = registry.find("my_gauge").tags("address", "addr2").gauge();
-    assertThat(g).isNull();
+    Meter meter = registry.get("my_gauge").tags("address", "_").meter();
+    assertThat(meter.getId().getType()).isEqualTo(Type.GAUGE);
+    Iterable<Measurement> measurements = meter.measure();
+    assertThat(measurements).hasSize(1).first().satisfies(measurement -> {
+      assertThat(measurement.getStatistic()).isEqualTo(Statistic.VALUE);
+      assertThat(measurement.getValue()).isEqualTo(3d);
+    });
+    meter = registry.find("my_gauge").tags("address", "addr1").meter();
+    assertThat(meter).isNull();
+    meter = registry.find("my_gauge").tags("address", "addr2").meter();
+    assertThat(meter).isNull();
   }
 
   @Test
   public void shouldSupportNoopGauges() {
     MeterRegistry registry = new SimpleMeterRegistry();
     registry.config().meterFilter(MeterFilter.deny(id -> "my_gauge".equals(id.getName())));
-    LongAdder g1 = longGauges.builder("my_gauge", LongAdder::doubleValue).register(registry);
+    CustomGauge g1 = new CustomGaugeBuilder("my_gauge", LongAdder::doubleValue).register(registry);
     g1.increment();
 
-    assertThat(registry.find("my_gauge").gauges()).isEmpty();
+    assertThat(registry.find("my_gauge").meters()).isEmpty();
   }
 }

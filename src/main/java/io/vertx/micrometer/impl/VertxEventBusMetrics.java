@@ -23,6 +23,8 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.ReplyFailure;
 import io.vertx.core.spi.metrics.EventBusMetrics;
 import io.vertx.micrometer.impl.VertxEventBusMetrics.HandlerMetric;
+import io.vertx.micrometer.impl.meters.CustomGauge;
+import io.vertx.micrometer.impl.meters.CustomGaugeBuilder;
 import io.vertx.micrometer.impl.tags.Labels;
 
 import java.util.concurrent.atomic.LongAdder;
@@ -144,7 +146,8 @@ class VertxEventBusMetrics extends AbstractMetrics implements EventBusMetrics<Ha
       Tags tags = addressAndSide(address, local);
       ebReceived.withTags(tags).increment();
       if (handlers > 0) {
-        longGaugeBuilder(names.getEbPending(), LongAdder::doubleValue)
+        String name = names.getEbPending();
+        new CustomGaugeBuilder(name, LongAdder::doubleValue)
           .description("Number of messages not processed yet")
           .tags(tags)
           .register(registry)
@@ -199,10 +202,10 @@ class VertxEventBusMetrics extends AbstractMetrics implements EventBusMetrics<Ha
 
   class HandlerMetric {
 
-    final LongAdder handlers;
-    final LongAdder ebPendingLocal;
+    final CustomGauge handlers;
+    final CustomGauge ebPendingLocal;
     final Counter ebProcessedLocal;
-    final LongAdder ebPendingRemote;
+    final CustomGauge ebPendingRemote;
     final Counter ebProcessedRemote;
     final Counter ebDiscardedLocal;
     final Counter ebDiscardedRemote;
@@ -212,7 +215,8 @@ class VertxEventBusMetrics extends AbstractMetrics implements EventBusMetrics<Ha
       if (enabledLabels.contains(EB_ADDRESS)) {
         tags = tags.and(EB_ADDRESS.toString(), address);
       }
-      handlers = longGaugeBuilder(names.getEbHandlers(), LongAdder::doubleValue)
+      String name2 = names.getEbHandlers();
+      handlers = new CustomGaugeBuilder(name2, LongAdder::doubleValue)
         .description("Number of event bus handlers in use")
         .tags(tags)
         .register(registry);
@@ -221,7 +225,8 @@ class VertxEventBusMetrics extends AbstractMetrics implements EventBusMetrics<Ha
         localTags = tags.and(Labels.side(true));
         remoteTags = tags.and(Labels.side(false));
       }
-      ebPendingLocal = longGaugeBuilder(names.getEbPending(), LongAdder::doubleValue)
+      String name1 = names.getEbPending();
+      ebPendingLocal = new CustomGaugeBuilder(name1, LongAdder::doubleValue)
         .description("Number of messages not processed yet")
         .tags(localTags)
         .register(registry);
@@ -233,7 +238,8 @@ class VertxEventBusMetrics extends AbstractMetrics implements EventBusMetrics<Ha
         .description("Number of discarded messages")
         .tags(localTags)
         .register(registry);
-      ebPendingRemote = longGaugeBuilder(names.getEbPending(), LongAdder::doubleValue)
+      String name = names.getEbPending();
+      ebPendingRemote = new CustomGaugeBuilder(name, LongAdder::doubleValue)
         .description("Number of messages not processed yet")
         .tags(remoteTags)
         .register(registry);

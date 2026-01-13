@@ -20,12 +20,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.micrometer.Label;
 import io.vertx.micrometer.MetricsDomain;
 import io.vertx.micrometer.MetricsNaming;
-import io.vertx.micrometer.impl.meters.LongGaugeBuilder;
-import io.vertx.micrometer.impl.meters.LongGauges;
 
 import java.util.EnumSet;
-import java.util.concurrent.atomic.LongAdder;
-import java.util.function.ToDoubleFunction;
 
 /**
  * Abstract class for metrics container.
@@ -38,14 +34,12 @@ public abstract class AbstractMetrics implements MicrometerMetrics {
   protected final MetricsNaming names;
   private final String category;
   protected final EnumSet<Label> enabledLabels;
-  private final LongGauges longGauges;
 
-  AbstractMetrics(MeterRegistry registry, MetricsNaming names, LongGauges longGauges, EnumSet<Label> enabledLabels) {
+  AbstractMetrics(MeterRegistry registry, MetricsNaming names, EnumSet<Label> enabledLabels) {
     this.registry = registry;
     this.category = null;
     this.enabledLabels = enabledLabels;
     this.names = names;
-    this.longGauges = longGauges;
   }
 
   AbstractMetrics(AbstractMetrics parent, MetricsDomain domain) {
@@ -55,7 +49,6 @@ public abstract class AbstractMetrics implements MicrometerMetrics {
   AbstractMetrics(AbstractMetrics parent, String category) {
     this.registry = parent.registry;
     this.enabledLabels = parent.enabledLabels;
-    this.longGauges = parent.longGauges;
     this.category = category;
     this.names = parent.names.withBaseName(baseName());
   }
@@ -72,9 +65,5 @@ public abstract class AbstractMetrics implements MicrometerMetrics {
   @Override
   public final String baseName() {
     return category == null ? null : "vertx." + category + ".";
-  }
-
-  LongGaugeBuilder longGaugeBuilder(String name, ToDoubleFunction<LongAdder> func) {
-    return longGauges.builder(name, func);
   }
 }

@@ -22,6 +22,8 @@ import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.Timer.Sample;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.spi.metrics.ClientMetrics;
+import io.vertx.micrometer.impl.meters.CustomGauge;
+import io.vertx.micrometer.impl.meters.CustomGaugeBuilder;
 import io.vertx.micrometer.impl.tags.Labels;
 
 import java.util.concurrent.atomic.LongAdder;
@@ -35,7 +37,7 @@ import static io.vertx.micrometer.Label.REMOTE;
 class VertxClientMetrics extends AbstractMetrics implements ClientMetrics<Sample, Object, Object> {
 
   final Timer processingTime;
-  final LongAdder processingPending;
+  final CustomGauge processingPending;
   final Counter resetCount;
 
   VertxClientMetrics(AbstractMetrics parent, SocketAddress remoteAddress, String type, String namespace) {
@@ -51,7 +53,8 @@ class VertxClientMetrics extends AbstractMetrics implements ClientMetrics<Sample
       .description("Processing time, from request start to response end")
       .tags(tags)
       .register(registry);
-    processingPending = longGaugeBuilder(names.getClientProcessingPending(), LongAdder::doubleValue)
+    String name = names.getClientProcessingPending();
+    processingPending = new CustomGaugeBuilder(name, LongAdder::doubleValue)
       .description("Number of elements being processed")
       .tags(tags)
       .register(registry);

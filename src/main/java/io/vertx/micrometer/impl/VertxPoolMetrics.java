@@ -21,6 +21,8 @@ import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.Timer.Sample;
 import io.vertx.core.spi.metrics.PoolMetrics;
+import io.vertx.micrometer.impl.meters.CustomGauge;
+import io.vertx.micrometer.impl.meters.CustomGaugeBuilder;
 
 import java.util.concurrent.atomic.LongAdder;
 
@@ -34,10 +36,10 @@ import static io.vertx.micrometer.MetricsDomain.NAMED_POOLS;
 class VertxPoolMetrics extends AbstractMetrics implements PoolMetrics<Sample, Sample> {
 
   final Timer queueDelay;
-  final LongAdder queueSize;
+  final CustomGauge queueSize;
   final Timer usage;
-  final LongAdder inUse;
-  final LongAdder usageRatio;
+  final CustomGauge inUse;
+  final CustomGauge usageRatio;
   final Counter completed;
 
   VertxPoolMetrics(AbstractMetrics parent, String poolType, String poolName, int maxPoolSize) {
@@ -53,7 +55,7 @@ class VertxPoolMetrics extends AbstractMetrics implements PoolMetrics<Sample, Sa
       .description("Time spent in queue before being processed")
       .tags(tags)
       .register(registry);
-    queueSize = longGaugeBuilder(names.getPoolQueuePending(), LongAdder::doubleValue)
+    queueSize = new CustomGaugeBuilder(names.getPoolQueuePending(), LongAdder::doubleValue)
       .description("Number of pending elements in queue")
       .tags(tags)
       .register(registry);
@@ -61,11 +63,11 @@ class VertxPoolMetrics extends AbstractMetrics implements PoolMetrics<Sample, Sa
       .description("Time using a resource")
       .tags(tags)
       .register(registry);
-    inUse = longGaugeBuilder(names.getPoolInUse(), LongAdder::doubleValue)
+    inUse = new CustomGaugeBuilder(names.getPoolInUse(), LongAdder::doubleValue)
       .description("Number of resources used")
       .tags(tags)
       .register(registry);
-    usageRatio = longGaugeBuilder(names.getPoolUsageRatio(), value -> maxPoolSize > 0 ? value.doubleValue() / maxPoolSize : Double.NaN)
+    usageRatio = new CustomGaugeBuilder(names.getPoolUsageRatio(), value -> maxPoolSize > 0 ? value.doubleValue() / maxPoolSize : Double.NaN)
       .description("Pool usage ratio, only present if maximum pool size could be determined")
       .tags(tags)
       .register(registry);
